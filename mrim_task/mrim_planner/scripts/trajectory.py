@@ -205,8 +205,13 @@ class TrajectoryUtils():
                 #  - do not forget to wrap angle to (-pi, pi) (see/use wrapAngle() in utils.py)
                 #  - see/use distEuclidean() in utils.py
 
+                dist_0_to_1 = distEuclidean(subtraj_point_0, subtraj_point_1)
+                dist_start_to_1 = distEuclidean(g_from.point, subtraj_point_1)
+
+
+
                 # [STUDENTS TODO] Change variable 'desired_heading', nothing else
-                desired_heading = waypoints[0].heading
+                desired_heading = wrapAngle(hdg_from + delta_heading * (dist_start_to_1 / subtraj_len))
 
                 # replace heading
                 current_heading   = desired_heading
@@ -459,7 +464,21 @@ class TrajectoryUtils():
             #  - check code examples for TOPPRA: https://hungpham2511.github.io/toppra/auto_examples/index.html
             #  - use 'toppra_trajectory' and the predefined sampling step 'sampling_step'
 
-            samples = [] # [STUDENTS TODO] Fill this variable with trajectory samples
+            # Sample the path parametrization 'toppra_trajectory' (instance of TOPPRA library)
+            path_discretization = toppra_trajectory.compute_discretization()
+            path_param = ta.SplineInterpolator(path_discretization, toppra_trajectory.eval(path_discretization))
+            
+            pc_vel = constraint.JointVelocityConstraint(velocity_limits)
+            pc_acc = constraint.JointAccelerationConstraint(acceleration_limits)
+            
+            # Create TOPP-RA instance and setup problem
+            instance = algo.TOPPRA([pc_vel, pc_acc], path_param)
+            
+            # Compute the parameterization
+            jnt_traj = instance.compute_trajectory()
+
+
+            samples = jnt_traj.eval(np.arange(0, jnt_traj.duration, sampling_step)) # [STUDENTS TODO] Fill this variable with trajectory samples
 
             # Convert to Trajectory class
             poses      = [Pose(q[0], q[1], q[2], q[3]) for q in samples]
@@ -632,10 +651,13 @@ class TrajectoryUtils():
 
             # Decide which UAV should be delayed
             # [STUDENTS TODO] CHANGE BELOW
-            delay_robot_idx, nondelay_robot_idx = 0, 1
+            if traj_lens[0] <= traj_lens[1]:
+                delay_robot_idx, nondelay_robot_idx = 0, 1
+            else:
+                delay_robot_idx, nondelay_robot_idx = 1, 0
 
             # TIP: use function `self.trajectoriesCollide()` to check if two trajectories are in collision
-            collision_flag, collision_idx = ...
+            collision_flag, collision_idx = self.trajectoriesCollide(trajectories[delay_robot_idx], trajectories[nondelay_robot_idx], safety_distance)
 
             while collision_flag:
 
@@ -643,9 +665,9 @@ class TrajectoryUtils():
                 delay_t += delay_step
 
                 # [STUDENTS TODO] use function `trajectory.delayStart(X)` to delay a UAV at the start location by X seconds
-
+                trajectories[delay_robot_idx].delayStart(delay_t)
                 # keep checking if the robot trajectories collide
-                collision_flag, _ = ...
+                collision_flag, _ = self.trajectoriesCollide(trajectories[delay_robot_idx], trajectories[nondelay_robot_idx], safety_distance)
 
         # # #}
 
