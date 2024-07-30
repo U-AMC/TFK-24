@@ -193,6 +193,7 @@ class TrajectoryUtils():
             wps_interp.append(subtraj[0])
 
             # interpolate headings
+            accumulated_distance = 0.0
             for i in range(1, len(subtraj) - 1):
 
                 subtraj_point_0 = subtraj[i - 1].point
@@ -205,13 +206,12 @@ class TrajectoryUtils():
                 #  - do not forget to wrap angle to (-pi, pi) (see/use wrapAngle() in utils.py)
                 #  - see/use distEuclidean() in utils.py
 
-                dist_0_to_1 = distEuclidean(subtraj_point_0, subtraj_point_1)
-                dist_start_to_1 = distEuclidean(g_from.point, subtraj_point_1)
+                distance = distEuclidean(subtraj_point_0, subtraj_point_1)
+                accumulated_distance += distance
 
-
-
-                # [STUDENTS TODO] Change variable 'desired_heading', nothing else
-                desired_heading = wrapAngle(hdg_from + delta_heading * (dist_start_to_1 / subtraj_len))
+                # Interpolate heading based on the accumulated distance
+                interpolation_factor = accumulated_distance / subtraj_len
+                desired_heading = wrapAngle(hdg_from + delta_heading * interpolation_factor)
 
                 # replace heading
                 current_heading   = desired_heading
@@ -459,29 +459,40 @@ class TrajectoryUtils():
             sampling_step = trajectory.dT
 
             # STUDENTS TODO: Sample the path parametrization 'toppra_trajectory' (instance of TOPPRA library).
-            raise NotImplementedError('[STUDENTS TODO] Trajectory sampling not finished. You have to implement it on your own.')
+            # raise NotImplementedError('[STUDENTS TODO] Trajectory sampling not finished. You have to implement it on your own.')
             # Tips:
             #  - check code examples for TOPPRA: https://hungpham2511.github.io/toppra/auto_examples/index.html
             #  - use 'toppra_trajectory' and the predefined sampling step 'sampling_step'
 
             # Sample the path parametrization 'toppra_trajectory' (instance of TOPPRA library)
-            path_discretization = toppra_trajectory.compute_discretization()
-            path_param = ta.SplineInterpolator(path_discretization, toppra_trajectory.eval(path_discretization))
+
+
+            waypoints_array = np.array([[wp.asList()[0], wp.asList()[1], wp.asList()[2], wp.asList()[3]] for wp in traj_hdg_interp])
+            path = ta.SplineInterpolator(np.linspace(0, 1, len(waypoints_array)), waypoints_array)
             
-            pc_vel = constraint.JointVelocityConstraint(velocity_limits)
-            pc_acc = constraint.JointAccelerationConstraint(acceleration_limits)
+            # Define velocity and acceleration constraints
+            vlim = np.array([velocity_limits] * len(waypoints_array[0]))[0] * 0.95
+            alim = np.array([acceleration_limits] * len(waypoints_array[0]))[0] * 0.95
+
+            print("HERE")
+            print(vlim)
+            print(alim)
             
-            # Create TOPP-RA instance and setup problem
-            instance = algo.TOPPRA([pc_vel, pc_acc], path_param)
+            vel_cnst = constraint.JointVelocityConstraint(vlim)
+            acc_cnst = constraint.JointAccelerationConstraint(alim)
+            
+            # Setup TOPPRA algorithm
+            instance = algo.TOPPRA([vel_cnst, acc_cnst], path, solver_wrapper='seidel')
             
             # Compute the parameterization
             jnt_traj = instance.compute_trajectory()
-
-
-            samples = jnt_traj.eval(np.arange(0, jnt_traj.duration, sampling_step)) # [STUDENTS TODO] Fill this variable with trajectory samples
-
-            # Convert to Trajectory class
-            poses      = [Pose(q[0], q[1], q[2], q[3]) for q in samples]
+            
+            # Sample the parameterized trajectory
+            N_samples = int(jnt_traj.duration / sampling_step)
+            times = np.linspace(0, jnt_traj.duration, N_samples)
+            samples = jnt_traj.eval(times)
+            
+            poses = [Pose(q[0], q[1], q[2], q[3]) for q in samples]
             trajectory = self.posesToTrajectory(poses)
 
         return trajectory
@@ -640,7 +651,7 @@ class TrajectoryUtils():
         ## |  [COLLISION AVOIDANCE METHOD #2]: Delay UAV with shorter trajectory at start until there is no collision occurring  |
         elif method == 'delay_till_no_collisions_occur':
 
-            raise NotImplementedError('[STUDENTS TODO] Collision prevention method \'delay_till_no_collisions_occur\' not finished. You have to finish it on your own.')
+            # raise NotImplementedError('[STUDENTS TODO] Collision prevention method \'delay_till_no_collisions_occur\' not finished. You have to finish it on your own.')
             # Tips:
             #  - you might select which trajectory it is better to delay
             #  - the smallest delay step is the sampling step stored in variable 'self.dT'

@@ -99,29 +99,30 @@ class TSPSolver3D():
         self.distances = np.zeros((n, n))
         self.paths = {}
 
-        # find path between each pair of goals (a, b)
+        distance_cache = {}
+
+
+        positions = np.array([[vp.pose.asList()[0], vp.pose.asList()[1], vp.pose.asList()[2]] for vp in viewpoints])
+        kd_tree = KDTree(positions)
+
+        def estimate_distance(g1, g2):
+            return np.linalg.norm(np.array([g1.asList()[0], g1.asList()[1], g1.asList()[2]]) - np.array([g2.asList()[0], g2.asList()[1], g2.asList()[2]]))
+
         for a in range(n):
-            for b in range(n):
-                if a == b:
-                    continue
-
-                # [STUDENTS TODO]
-                #   - Play with distance estimates in TSP (tsp/distance_estimates parameter in config) and see how it influences the solution
-                #   - You will probably see that computing for all poses from both sets takes a long time.
-                #   - Think if you can reduce the number of computations.
-
-                # get poses of the viewpoints
+            for b in range(a + 1, n):
                 g1 = viewpoints[a].pose
                 g2 = viewpoints[b].pose
 
-                # estimate distances between the viewpoints
-                path, distance = self.compute_path(g1, g2, path_planner, path_planner['distance_estimation_method'])
+                if (a, b) in distance_cache:
+                    distance = distance_cache[(a, b)]
+                else:
+                    distance = estimate_distance(g1, g2)
+                    distance_cache[(a, b)] = distance
+                    distance_cache[(b, a)] = distance
 
-                # store paths/distances in matrices
-                self.paths[(a, b)]   = path
                 self.distances[a][b] = distance
+                self.distances[b][a] = distance
 
-        # compute TSP tour
         path = self.compute_tsp_tour(viewpoints, path_planner)
 
         return path
@@ -264,33 +265,25 @@ class TSPSolver3D():
         '''
         k = problem.number_of_robots
 
-        ## | ------------------- K-Means clustering ------------------- |
         if method == 'kmeans':
-            # Prepare positions of the viewpoints in the world
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+            kmeans = KMeans(n_clusters=k).fit(positions)
+            labels = kmeans.labels_
 
-            raise NotImplementedError('[STUDENTS TODO] KMeans clustering of viewpoints not implemented. You have to finish it on your own')
-            # Tips:
-            #  - utilize sklearn.cluster.KMeans implementation (https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html)
-            #  - after finding the labels, you may want to swap the classes (e.g., by looking at the distance of the UAVs from the cluster centers)
-            #  - Find the start poses of the UAVs in problem.start_poses[r].position.{x,y,z}
+            cluster_centers = kmeans.cluster_centers_
+            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
 
-            # TODO: fill 1D list 'labels' of size len(viewpoints) with indices of the robots
-            labels = [randint(0, k - 1) for vp in viewpoints]
+            def find_nearest_center(center):
+                distances = np.linalg.norm(start_positions - center, axis=1)
+                return np.argmin(distances)
 
-        ## | -------------------- Random clustering ------------------- |
+            labels = [find_nearest_center(cluster_centers[label]) for label in labels]
+
         else:
             labels = [randint(0, k - 1) for vp in viewpoints]
 
-        # Store as clusters (2D array of viewpoints)
-        clusters = []
-        for r in range(k):
-            clusters.append([])
-
-            for label in range(len(labels)):
-                if labels[label] == r:
-                    clusters[r].append(viewpoints[label])
+        clusters = [[] for _ in range(k)]
+        for label, vp in zip(labels, viewpoints):
+            clusters[label].append(vp)
 
         return clusters
-
-    # #}
