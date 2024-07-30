@@ -336,6 +336,9 @@ During the week of the 2024 MRS Summer School, the organizers reserve the right 
 * to maintain fairness: to change the problems or the constraints for the challenges,
 * to preserve safety: to discard provided trajectories for the real-world challenge if the flight would be unsafe in any possible way.
 
+## Collaborator
+
+
 ## References
 
 * [1]  Baca, T., Petrlik, M., Vrba, M., Spurny, V., Penicka, R., Hert, D., and Saska, M., [The MRS UAV System: Pushing the Frontiers of Reproducible Research, Real-world Deployment, and Education with Autonomous Unmanned Aerial Vehicles](https://arxiv.org/pdf/2008.08050), _Journal of Intelligent & Robotic Systems 102(26):1–28, May 2021_, GitHub: https://github.com/ctu-mrs/mrs_uav_system.
