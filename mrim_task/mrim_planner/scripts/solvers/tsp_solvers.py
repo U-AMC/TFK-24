@@ -267,7 +267,7 @@ class TSPSolver3D():
 
         if method == 'kmeans':
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            kmeans = KMeans(n_clusters=k).fit(positions)
+            kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
             labels = kmeans.labels_
 
             cluster_centers = kmeans.cluster_centers_
