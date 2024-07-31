@@ -279,10 +279,6 @@ class TSPSolver3D():
             #     distances = np.linalg.norm(start_positions - center, axis=1)
             #     return np.argmin(distances)
             # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
-
-            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
-            labels = kmeans.labels_
         ## | ------------------- another  clustering ------------------- |
 
         ## | -------------------- Random clustering ------------------- |
