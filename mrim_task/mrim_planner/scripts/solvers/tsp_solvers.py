@@ -267,19 +267,22 @@ class TSPSolver3D():
 
         ## | ------------------- K-Means clustering ------------------- |
         if method == 'kmeans':
-                    positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-                    kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
-                    labels = kmeans.labels_
-                    cluster_centers = kmeans.cluster_centers_
-                    start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-                    cluster_tree = KDTree(start_positions)
-                    distance, index = cluster_tree.query(cluster_centers)
-                    labels = [index[label] for label in labels]
-                    # def find_nearest_center(center):
-                    #     distances = np.linalg.norm(start_positions - center, axis=1)
-                    #     return np.argmin(distances)
-                    # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
+            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+            kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
+            labels = kmeans.labels_
+            cluster_centers = kmeans.cluster_centers_
+            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+            cluster_tree = KDTree(start_positions)
+            distance, index = cluster_tree.query(cluster_centers)
+            labels = [index[label] for label in labels]
+            # def find_nearest_center(center):
+            #     distances = np.linalg.norm(start_positions - center, axis=1)
+            #     return np.argmin(distances)
+            # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
 
+            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+            kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
+            labels = kmeans.labels_
         ## | ------------------- another  clustering ------------------- |
 
         ## | -------------------- Random clustering ------------------- |
