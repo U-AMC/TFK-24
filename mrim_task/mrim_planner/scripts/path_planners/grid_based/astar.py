@@ -72,7 +72,10 @@ class Node:
         b = self.pos[1] - self.goal[1]
         c = self.pos[2] - self.goal[2]
 
-        raise NotImplementedError('[STUDENTS TODO] Heuristic function guiding the state space exploration not implemented. You have to finish it on your own.')
+        euclidean_distance = (a**2 + b**2 + c**2)**0.5
+        manhattan_distance = abs(a) + abs(b) + abs(c)
+        return manhattan_distance
+        # raise NotImplementedError('[STUDENTS TODO] Heuristic function guiding the state space exploration not implemented. You have to finish it on your own.')
 # # #}
 
 # # #{ class AStar
