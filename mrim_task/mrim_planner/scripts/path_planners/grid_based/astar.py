@@ -100,7 +100,7 @@ class AStar():
         
         if len(path) <= 2:
             return path
-
+        '''
         raise NotImplementedError('[STUDENTS TODO] A*: path straightening is not finished. Finish it on your own.')
         # Tips:
         #  - divide the given path by a certain ratio and use this method recursively
@@ -113,8 +113,21 @@ class AStar():
 
             seg1.extend(seg2)
             return seg1
-        
+
         return [pt1, pt2]
+        '''
+        # Check if there's an obstacle between the start and end points
+        if self.grid.obstacleBetween(pt1, pt2):
+            # If there's an obstacle, split the path and test the segments
+            mid = len(path) // 2
+            seg1 = self.halveAndTest(path[:mid + 1])
+            seg2 = self.halveAndTest(path[mid:])
+            
+            # Combine the segments, removing the duplicate midpoint
+            return seg1[:-1] + seg2
+        else:
+            # If no obstacle, return the straightened path
+            return [pt1, pt2]
 
     def generatePath(self, m_start, m_goal):
         
