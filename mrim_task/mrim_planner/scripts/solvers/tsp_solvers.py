@@ -7,7 +7,8 @@ import numpy as np
 
 from random import randint
 
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.neighbors import KDTree
 from scipy.spatial.kdtree import KDTree
 
 from utils import *
@@ -268,7 +269,7 @@ class TSPSolver3D():
         ## | ------------------- K-Means clustering ------------------- |
         if method == 'kmeans':
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
+            kmeans = KMeans(n_clusters=k, algorithm='elkan', max_iter=5).fit(positions)
             labels = kmeans.labels_
             cluster_centers = kmeans.cluster_centers_
             start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
@@ -279,7 +280,64 @@ class TSPSolver3D():
             #     distances = np.linalg.norm(start_positions - center, axis=1)
             #     return np.argmin(distances)
             # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
+
         ## | ------------------- another  clustering ------------------- |
+        if method == 'DBSCAN':
+            # positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+            # dbscan = DBSCAN(eps=0.5, min_samples=5).fit(positions)
+            # labels = dbscan.labels_
+            
+            # # Filter out noise points (label == -1)
+            # unique_labels = set(labels)
+            # unique_labels.discard(-1)  # Remove noise label
+            
+            # cluster_centers = []
+            # for label in unique_labels:
+            #     cluster_points = positions[labels == label]
+            #     cluster_center = cluster_points.mean(axis=0)
+            #     cluster_centers.append(cluster_center)
+            
+            # cluster_centers = np.array(cluster_centers)
+            
+            # start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+            # cluster_tree = KDTree(start_positions)
+            # distance, index = cluster_tree.query(cluster_centers)
+            # labels = [index[label] if label != -1 else -1 for label in labels]  # Keep noise points labeled as -1
+            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+            # DBSCAN parameters: adjust eps and min_samples based on your data
+            dbscan = DBSCAN(eps=50, min_samples=15).fit(positions)
+            labels = dbscan.labels_
+            
+            # Get unique labels and filter out noise
+            unique_labels = set(labels)
+            unique_labels.discard(-1)  # Remove noise label
+
+            # Calculate cluster centers
+            cluster_centers = []
+            for label in unique_labels:
+                cluster_points = positions[labels == label]
+                if len(cluster_points) > 1:
+                    cluster_center = cluster_points.mean(axis=0)
+                    cluster_centers.append(cluster_center)
+                
+            
+            if cluster_centers:
+                cluster_centers = np.array(cluster_centers)
+            else:
+                # Handle case where no clusters are found
+                cluster_centers = np.empty((0, 3))
+            
+            # Check if there are valid cluster centers before proceeding
+            if cluster_centers.shape[0] > 0:
+                start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+                if start_positions.shape[0] > 0:
+                    cluster_tree = KDTree(start_positions)
+                    distance, index = cluster_tree.query(cluster_centers)
+                    labels = [index[label] if label != -1 else -1 for label in labels]  # Keep noise points labeled as -1
+                else:
+                    raise ValueError("Start positions array is empty")
+            else:
+                raise ValueError("No valid clusters found by DBSCAN")
 
         ## | -------------------- Random clustering ------------------- |
         else:

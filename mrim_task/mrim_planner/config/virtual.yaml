@@ -1,17 +1,17 @@
 problem:
-  name: "warehouse_small.problem" # [warehouse_small.problem, warehouse_large.problem, warehouse_yard.problem]
+  name: "warehouse_large.problem" # [warehouse_small.problem, warehouse_large.problem, warehouse_yard.problem]
   plot: False
 
 # Parameters for Traveling Salesman Problem
 tsp:
-  clustering: 'random'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans]
+  clustering: 'kmeans'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans]
   distance_estimates: 'euclidean' # Method for evaluating cost of paths in TSP heuristic: [euclidean (default), astar, rrt, rrtstar]
 
 # Parameters for path planning
 path_planner:
   timeout: 10.0              # (s) timeout for single start-to-goal planning
   method: 'astar'              # [STUDENTS TODO: implement better method than the default] Method for generating start-to-goal paths: [euclidean, astar, rrt (default), rrtstar]
-  straighten_paths: false    # [STUDENTS TODO: implement better method than the default] Path straightening flag (default: false)
+  straighten_paths: true    # [STUDENTS TODO: implement better method than the default] Path straightening flag (default: false)
 
   # RRT and RRT* method parameters
   rrt:
