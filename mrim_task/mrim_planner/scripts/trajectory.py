@@ -454,6 +454,15 @@ class TrajectoryUtils():
             # Interpolate heading between waypoints
             traj_hdg_interp = self.interpolateHeading(waypoints)
             # Parametrize trajectory
+            print("HERE@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            def list_comp_mul(list_class, mul):
+                
+                tmp_list = []
+                for i in range(len(list_class)):
+                    tmp_list.append(list_class[i] * mul)
+
+                return tmp_list
+
             toppra_trajectory = self.getParametrizedTrajectory(traj_hdg_interp, velocity_limits, acceleration_limits)
 
             sampling_step = trajectory.dT
@@ -467,30 +476,13 @@ class TrajectoryUtils():
             # Sample the path parametrization 'toppra_trajectory' (instance of TOPPRA library)
 
 
-            waypoints_array = np.array([[wp.asList()[0], wp.asList()[1], wp.asList()[2], wp.asList()[3]] for wp in traj_hdg_interp])
-            path = ta.SplineInterpolator(np.linspace(0, 1, len(waypoints_array)), waypoints_array)
-            
-            # Define velocity and acceleration constraints
-            vlim = np.array([velocity_limits] * len(waypoints_array[0]))[0] * 0.95
-            alim = np.array([acceleration_limits] * len(waypoints_array[0]))[0] * 0.95
+            # Perform the sampling
+            path_discretization = np.arange(0, toppra_trajectory.duration, sampling_step)
+            if path_discretization[-1] < toppra_trajectory.duration:
+                path_discretization = np.append(path_discretization, toppra_trajectory.duration)
 
-            print("HERE")
-            print(vlim)
-            print(alim)
-            
-            vel_cnst = constraint.JointVelocityConstraint(vlim)
-            acc_cnst = constraint.JointAccelerationConstraint(alim)
-            
-            # Setup TOPPRA algorithm
-            instance = algo.TOPPRA([vel_cnst, acc_cnst], path, solver_wrapper='seidel')
-            
-            # Compute the parameterization
-            jnt_traj = instance.compute_trajectory()
-            
-            # Sample the parameterized trajectory
-            N_samples = int(jnt_traj.duration / sampling_step)
-            times = np.linspace(0, jnt_traj.duration, N_samples)
-            samples = jnt_traj.eval(times)
+            # Sample the trajectory using the parameterization
+            samples = toppra_trajectory.eval(path_discretization)
             
             poses = [Pose(q[0], q[1], q[2], q[3]) for q in samples]
             trajectory = self.posesToTrajectory(poses)
