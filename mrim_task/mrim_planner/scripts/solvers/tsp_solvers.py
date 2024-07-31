@@ -272,12 +272,15 @@ class TSPSolver3D():
 
             cluster_centers = kmeans.cluster_centers_
             start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+            
+            cluster_tree = KDTree(start_positions)
+            distance, index = cluster_tree.query(cluster_centers)
+            labels = [index[label] for label in labels]
 
-            def find_nearest_center(center):
-                distances = np.linalg.norm(start_positions - center, axis=1)
-                return np.argmin(distances)
-
-            labels = [find_nearest_center(cluster_centers[label]) for label in labels]
+            # def find_nearest_center(center):
+            #     distances = np.linalg.norm(start_positions - center, axis=1)
+            #     return np.argmin(distances)
+            # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
 
         else:
             labels = [randint(0, k - 1) for vp in viewpoints]
