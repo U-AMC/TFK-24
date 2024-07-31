@@ -5,10 +5,12 @@ from numpy import sqrt
 import numpy as np
 
 class Node:
-    def __init__(self, pos, route=0, parent=None, goal=None):
+    def __init__(self, pos, route=0, parent=None, goal=None, other_paths=[], safety_distance=0):
         self.route = route
         self.pos = pos
         self.parent = parent
+        self.other_paths = other_paths  # List of other paths to avoid
+        self.safety_distance = safety_distance + 0.4 # Minimum distance to maintain from other paths
         if goal is not None:
             self.goal = goal
         elif parent is not None:
@@ -24,8 +26,22 @@ class Node:
         return self.value < other.value
 
     def _heuristic_function(self):
+        # Manhattan distance
         a, b, c = self.pos[0] - self.goal[0], self.pos[1] - self.goal[1], self.pos[2] - self.goal[2]
-        return abs(a) + abs(b) + abs(c)  # Manhattan distance
+        distance_heuristic = abs(a) + abs(b) + abs(c)
+
+        # Enhanced repulsion heuristic
+        repulsion_heuristic = 0
+        for path in self.other_paths:
+            for other_pos in path:
+                dist = np.linalg.norm(np.array(self.pos) - np.array(other_pos))
+                if dist < self.safety_distance:
+                    repulsion_heuristic += (self.safety_distance / (dist + 1e-6)) ** 3  # Stronger penalty
+                    repulsion_heuristic += np.exp(-dist / (self.safety_distance / 2))  # Exponential penalty
+
+        return distance_heuristic + repulsion_heuristic
+
+
 
 class AStar:
     def __init__(self, grid, safety_distance, timeout, straighten=False):
@@ -51,10 +67,9 @@ class AStar:
         else:
             return [pt1, pt2]
 
-    def generatePath(self, m_start, m_goal):
-        # print(f"[INFO] A*: Searching for path from {m_start} to {m_goal}.")
+    def generatePath(self, m_start, m_goal, other_paths=[]):
         start, goal = self.grid.metricToIndex(m_start), self.grid.metricToIndex(m_goal)
-        node = self.search_path(start, goal)
+        node = self.search_path(start, goal, other_paths)
         if node is None:
             print("[ERROR] A* did not find any path!")
             return None, None
@@ -74,7 +89,7 @@ class AStar:
         
         return path_m, distance
 
-    def generateMinimumJerkPath(self, m_start, m_goal, num_points=200):
+    def generateMinimumJerkPath(self, m_start, m_goal, num_points=10):
         path_m, distance = self.generatePath(m_start, m_goal)
         if path_m is None:
             return None, None
@@ -112,8 +127,8 @@ class AStar:
 
         return smooth_path, smooth_distance
 
-    def search_path(self, start, goal):
-        start_node = Node(start, goal=goal)
+    def search_path(self, start, goal, other_paths):
+        start_node = Node(start, goal=goal, other_paths=other_paths, safety_distance=self.safety_distance)
         open_queue = []
         heapq.heappush(open_queue, start_node)
         closed_set = {}
@@ -133,7 +148,7 @@ class AStar:
                 return best_node
 
             for neighbor in self.neighbors(best_node.pos):
-                neighbor_node = Node(neighbor, best_node.route + self.dist(best_node.pos, neighbor), best_node, goal)
+                neighbor_node = Node(neighbor, best_node.route + self.dist(best_node.pos, neighbor), best_node, goal, other_paths, self.safety_distance)
                 if neighbor in closed_set and closed_set[neighbor] <= neighbor_node.value:
                     continue
                 heapq.heappush(open_queue, neighbor_node)
@@ -148,3 +163,4 @@ class AStar:
             if 0 <= idx[0] < self.grid.dim[0] and 0 <= idx[1] < self.grid.dim[1] and 0 <= idx[2] < self.grid.dim[2] and not self.grid.idxIsOccupied(idx):
                 neighbors.append(idx)
         return neighbors
+
