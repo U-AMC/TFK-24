@@ -43,7 +43,7 @@ trajectories:
 
 # Viewpoints specifications
 viewpoints:
-  distance: 4.0 # (m)
+  distance: 6.0 # (m)
 
   inspection_limits:
     distance: 0.3 # (m)

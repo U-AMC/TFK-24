@@ -19,6 +19,8 @@ class Node:
         self.value = self.route + self.heuristic
 
     def __lt__(self, other):
+        if self.value == other.value:
+            return self.pos < other.pos  # Tie-breaking by position
         return self.value < other.value
 
     def _heuristic_function(self):
@@ -69,7 +71,46 @@ class AStar:
         path_m = [self.grid.indexToMetric(node) for node in path]
         distance = sum(self.dist(path_m[i - 1], path_m[i]) for i in range(1, len(path_m)))
         path_m[0] = (*path_m[0][:3], m_start[3])
+        
         return path_m, distance
+
+    def generateMinimumJerkPath(self, m_start, m_goal, num_points=200):
+        path_m, distance = self.generatePath(m_start, m_goal)
+        if path_m is None:
+            return None, None
+
+        # Time vector for parameterization
+        t = np.linspace(0, 1, len(path_m))
+        
+        # Create minimum jerk trajectory for each dimension
+        def minimum_jerk_trajectory(points):
+            t_points = np.linspace(0, 1, len(points))
+            A = np.vstack([t_points**i for i in range(6)]).T
+            coeffs = np.linalg.lstsq(A, points, rcond=None)[0]
+            t_fine = np.linspace(0, 1, num_points)
+            return sum(c * t_fine**i for i, c in enumerate(coeffs))
+
+        # Extract x, y, z coordinates from the path
+        x = [p[0] for p in path_m]
+        y = [p[1] for p in path_m]
+        z = [p[2] for p in path_m]
+
+        # Generate minimum jerk trajectories for each axis
+        x_smooth = minimum_jerk_trajectory(x)
+        y_smooth = minimum_jerk_trajectory(y)
+        z_smooth = minimum_jerk_trajectory(z)
+
+        # Combine the smoothed coordinates back into a list of waypoints
+        smooth_path = [(x_smooth[i], y_smooth[i], z_smooth[i]) for i in range(num_points)]
+
+        # Calculate the distance of the smooth path
+        smooth_distance = sum(self.dist(smooth_path[i - 1], smooth_path[i]) for i in range(1, len(smooth_path)))
+
+        # Add the orientation information back to the start and end points
+        smooth_path[0] = (*smooth_path[0], m_start[3])
+        smooth_path[-1] = (*smooth_path[-1], m_goal[3])
+
+        return smooth_path, smooth_distance
 
     def search_path(self, start, goal):
         start_node = Node(start, goal=goal)
