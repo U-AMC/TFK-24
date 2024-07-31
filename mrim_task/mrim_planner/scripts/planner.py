@@ -101,7 +101,7 @@ class MrimPlanner:
         self.publisher_trajectory_2 = rospy.Publisher("~trajectory_2_out", TrajectoryReference, queue_size=1, latch=True)
         self.problem_publisher      = rospy.Publisher("~problem_out", InspectionProblem, queue_size=1, latch=True)
 
-        rate = rospy.Rate(1.0)
+        rate = rospy.Rate(0.1)
         rate.sleep()
 
         ## | --------------------- publish problem -------------------- |

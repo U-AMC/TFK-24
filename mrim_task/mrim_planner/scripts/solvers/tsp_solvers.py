@@ -99,30 +99,30 @@ class TSPSolver3D():
         self.distances = np.zeros((n, n))
         self.paths = {}
 
-        distance_cache = {}
-
-
-        positions = np.array([[vp.pose.asList()[0], vp.pose.asList()[1], vp.pose.asList()[2]] for vp in viewpoints])
-        kd_tree = KDTree(positions)
-
-        def estimate_distance(g1, g2):
-            return np.linalg.norm(np.array([g1.asList()[0], g1.asList()[1], g1.asList()[2]]) - np.array([g2.asList()[0], g2.asList()[1], g2.asList()[2]]))
-
+        # find path between each pair of goals (a, b)
         for a in range(n):
-            for b in range(a + 1, n):
+            for b in range(n):
+                if a == b:
+                    continue
+                
+                #
+                # [STUDENTS TODO]
+                #   - Play with distance estimates in TSP (tsp/distance_estimates parameter in config) and see how it influences the solution
+                #   - You will probably see that computing for all poses from both sets takes a long time.
+                #   - Think if you can reduce the number of computations.
+
+                # get poses of the viewpoints
                 g1 = viewpoints[a].pose
                 g2 = viewpoints[b].pose
 
-                if (a, b) in distance_cache:
-                    distance = distance_cache[(a, b)]
-                else:
-                    distance = estimate_distance(g1, g2)
-                    distance_cache[(a, b)] = distance
-                    distance_cache[(b, a)] = distance
+                # estimate distances between the viewpoints
+                path, distance = self.compute_path(g1, g2, path_planner, path_planner['distance_estimation_method'])
 
+                # store paths/distances in matrices
+                self.paths[(a, b)]   = path
                 self.distances[a][b] = distance
-                self.distances[b][a] = distance
 
+        # compute TSP tour
         path = self.compute_tsp_tour(viewpoints, path_planner)
 
         return path
@@ -265,28 +265,36 @@ class TSPSolver3D():
         '''
         k = problem.number_of_robots
 
+        ## | ------------------- K-Means clustering ------------------- |
         if method == 'kmeans':
-            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            kmeans = KMeans(n_clusters=k).fit(positions)
-            labels = kmeans.labels_
+                    positions = np.array([vp.pose.point.asList() for vp in viewpoints])
+                    kmeans = KMeans(n_clusters=k, algorithm='elkan').fit(positions)
+                    labels = kmeans.labels_
+                    cluster_centers = kmeans.cluster_centers_
+                    start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+                    cluster_tree = KDTree(start_positions)
+                    distance, index = cluster_tree.query(cluster_centers)
+                    labels = [index[label] for label in labels]
+                    # def find_nearest_center(center):
+                    #     distances = np.linalg.norm(start_positions - center, axis=1)
+                    #     return np.argmin(distances)
+                    # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
 
-            cluster_centers = kmeans.cluster_centers_
-            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-            
-            cluster_tree = KDTree(start_positions)
-            distance, index = cluster_tree.query(cluster_centers)
-            labels = [index[label] for label in labels]
+        ## | ------------------- another  clustering ------------------- |
 
-            # def find_nearest_center(center):
-            #     distances = np.linalg.norm(start_positions - center, axis=1)
-            #     return np.argmin(distances)
-            # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
-
+        ## | -------------------- Random clustering ------------------- |
         else:
             labels = [randint(0, k - 1) for vp in viewpoints]
 
-        clusters = [[] for _ in range(k)]
-        for label, vp in zip(labels, viewpoints):
-            clusters[label].append(vp)
+        # Store as clusters (2D array of viewpoints)
+        clusters = []
+        for r in range(k):
+            clusters.append([])
+
+            for label in range(len(labels)):
+                if labels[label] == r:
+                    clusters[r].append(viewpoints[label])
 
         return clusters
+
+    # #}

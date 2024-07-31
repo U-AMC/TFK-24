@@ -29,7 +29,7 @@ class Node:
         return abs(a) + abs(b) + abs(c)  # Manhattan distance
 
 class AStar:
-    def __init__(self, grid, safety_distance, timeout, straighten=True):
+    def __init__(self, grid, safety_distance, timeout, straighten=False):
         self.grid = grid
         self.safety_distance = safety_distance
         self.neighborhood = [p for p in itertools.product([0, 1, -1], repeat=3) if not (p[0] == 0 and p[1] == 0 and p[2] == 0)]
