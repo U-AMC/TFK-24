@@ -5,12 +5,13 @@ from numpy import sqrt
 import numpy as np
 
 class Node:
-    def __init__(self, pos, route=0, parent=None, goal=None, other_paths=[], safety_distance=0):
+    def __init__(self, pos, route=0, parent=None, goal=None, other_paths=[], safety_distance=0, weight=1):
         self.route = route
         self.pos = pos
         self.parent = parent
         self.other_paths = other_paths  # List of other paths to avoid
-        self.safety_distance = safety_distance + 0.4 # Minimum distance to maintain from other paths
+        self.safety_distance = safety_distance + 3.0  # Minimum distance to maintain from other paths
+        self.weight = weight  # Weight factor for the heuristic
         if goal is not None:
             self.goal = goal
         elif parent is not None:
@@ -18,7 +19,7 @@ class Node:
         else:
             raise Exception("Goal was not specified and the node does not have any parent!")
         self.heuristic = self._heuristic_function()
-        self.value = self.route + self.heuristic
+        self.value = self.route + self.weight * self.heuristic
 
     def __lt__(self, other):
         if self.value == other.value:
@@ -37,7 +38,7 @@ class Node:
                 dist = np.linalg.norm(np.array(self.pos) - np.array(other_pos))
                 if dist < self.safety_distance:
                     repulsion_heuristic += (self.safety_distance / (dist + 1e-6)) ** 3  # Stronger penalty
-                    repulsion_heuristic += np.exp(-dist / (self.safety_distance / 2))  # Exponential penalty
+                    repulsion_heuristic *= np.exp(-dist / (self.safety_distance / 2))  # Exponential penalty
 
         return distance_heuristic + repulsion_heuristic
 
@@ -96,24 +97,24 @@ class AStar:
 
         # Time vector for parameterization
         t = np.linspace(0, 1, len(path_m))
-        
-        # Create minimum jerk trajectory for each dimension
-        def minimum_jerk_trajectory(points):
-            t_points = np.linspace(0, 1, len(points))
-            A = np.vstack([t_points**i for i in range(6)]).T
-            coeffs = np.linalg.lstsq(A, points, rcond=None)[0]
-            t_fine = np.linspace(0, 1, num_points)
-            return sum(c * t_fine**i for i, c in enumerate(coeffs))
 
         # Extract x, y, z coordinates from the path
         x = [p[0] for p in path_m]
         y = [p[1] for p in path_m]
         z = [p[2] for p in path_m]
 
-        # Generate minimum jerk trajectories for each axis
-        x_smooth = minimum_jerk_trajectory(x)
-        y_smooth = minimum_jerk_trajectory(y)
-        z_smooth = minimum_jerk_trajectory(z)
+        # Fit quintic polynomials to the waypoints
+        px = np.polyfit(t, x, 10)
+        py = np.polyfit(t, y, 10)
+        pz = np.polyfit(t, z, 10)
+
+        # Fine time parameterization
+        t_fine = np.linspace(0, 1, num_points)
+
+        # Evaluate the polynomials at fine time intervals
+        x_smooth = np.polyval(px, t_fine)
+        y_smooth = np.polyval(py, t_fine)
+        z_smooth = np.polyval(pz, t_fine)
 
         # Combine the smoothed coordinates back into a list of waypoints
         smooth_path = [(x_smooth[i], y_smooth[i], z_smooth[i]) for i in range(num_points)]
