@@ -270,37 +270,6 @@ class TSPSolver3D():
             return total_length
 
         # # #}
-
-
-        # #{balance_clusters()
-
-        def balance_clusters(viewpoints, labels, k):
-            clusters = [[] for _ in range(k)]
-            for label, vp in zip(labels, viewpoints):
-                clusters[label].append(vp)
-            
-            lengths = [calculate_trajectory_length(cluster) for cluster in clusters]
-            
-            while abs(lengths[0] - lengths[1]) > 3.5:  # Tolerance for balancing
-                larger_cluster = 0 if lengths[0] > lengths[1] else 1
-                smaller_cluster = 1 - larger_cluster
-                
-                # Find the point in the larger cluster that is closest to the smaller cluster's centroid
-                larger_points = np.array([vp.pose.point.asList() for vp in clusters[larger_cluster]])
-                smaller_centroid = np.mean(np.array([vp.pose.point.asList() for vp in clusters[smaller_cluster]]), axis=0)
-                
-                distances = np.linalg.norm(larger_points - smaller_centroid, axis=1)
-                point_to_move = np.argmin(distances)
-                
-                # Move the point
-                clusters[smaller_cluster].append(clusters[larger_cluster].pop(point_to_move))
-                
-                # Recalculate lengths
-                lengths = [calculate_trajectory_length(cluster) for cluster in clusters]
-            
-            return clusters
-
-        # # #}
         '''
         Clusters viewpoints into K (number of robots) clusters.
 
