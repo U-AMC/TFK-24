@@ -139,6 +139,15 @@ class MrimPlanner:
 
         print('[ASSIGNING VIEWPOINTS TO UAVs]')
 
+        def calculate_viewpoint_centroids(viewpoints):
+            """Calculate centroids from a list of viewpoints."""
+            positions = np.array([[vp.pose.asList()[0], vp.pose.asList()[1], vp.pose.asList()[2]] for vp in viewpoints])
+            if len(positions) == 0:
+                return None
+            centroid = np.mean(positions, axis=0)
+            return centroid
+
+
         viewpoints       = []
         nonclustered_vps = []
 
@@ -164,7 +173,11 @@ class MrimPlanner:
                     nonclustered_vps.append(viewpoint)
 
         # Cluster the rest of the viewpoints into two separate groups
-        clusters = tsp_solver.clusterViewpoints(problem, nonclustered_vps, method=self._tsp_clustering_method)
+        init_positions = [calculate_viewpoint_centroids(vp_list) for vp_list in viewpoints if vp_list]
+        init_positions = np.array(init_positions)  # Ensure it is a numpy array for clustering
+        clusters = tsp_solver.clusterViewpoints(problem, nonclustered_vps, method=self._tsp_clustering_method, init_positions=init_positions)
+        # clusters = tsp_solver.clusterViewpoints(problem, nonclustered_vps, method=self._tsp_clustering_method)
+
         for r in range(problem.number_of_robots):
             viewpoints[r].extend(clusters[r])
 

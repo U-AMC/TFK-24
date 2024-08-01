@@ -253,7 +253,7 @@ class TSPSolver3D():
     # #{ clusterViewpoints()
 
 
-    def clusterViewpoints(self, problem, viewpoints, method):
+    def clusterViewpoints(self, problem, viewpoints, method, init_positions=None):
 
         # #{ calculate_trajectory_length()
 
@@ -316,7 +316,10 @@ class TSPSolver3D():
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
 
             # Perform K-Means clustering
-            kmeans = KMeans(n_clusters=k, random_state=0).fit(positions)
+            if init_positions is not None:
+                kmeans = KMeans(n_clusters=k, random_state=0, init=init_positions).fit(positions)
+            else:
+                kmeans = KMeans(n_clusters=k, random_state=0).fit(positions)
 
             # Get the labels for each viewpoint
             labels = kmeans.labels_

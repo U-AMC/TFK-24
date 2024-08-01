@@ -25,7 +25,7 @@ path_planner:
 
   # A* method parameters
   astar:
-    grid_resolution: 0.3 # (m)
+    grid_resolution: 0.4 # (m)
 
 # Parameters for path smoothing
 path_smoothing:
