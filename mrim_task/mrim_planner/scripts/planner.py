@@ -139,13 +139,16 @@ class MrimPlanner:
 
         print('[ASSIGNING VIEWPOINTS TO UAVs]')
 
-        def calculate_viewpoint_centroids(viewpoints):
-            """Calculate centroids from a list of viewpoints."""
+        def calculate_viewpoint_centroids(viewpoints, trim_ratio=0.1):
+            """Calculate the trimmed mean center from a list of viewpoints."""
             positions = np.array([[vp.pose.asList()[0], vp.pose.asList()[1], vp.pose.asList()[2]] for vp in viewpoints])
             if len(positions) == 0:
                 return None
-            centroid = np.mean(positions, axis=0)
-            return centroid
+            lower_bound = int(len(positions) * trim_ratio)
+            upper_bound = int(len(positions) * (1 - trim_ratio))
+            trimmed_positions = np.sort(positions, axis=0)[lower_bound:upper_bound]
+            trimmed_mean_center = np.mean(trimmed_positions, axis=0)
+            return trimmed_mean_center
 
 
         viewpoints       = []

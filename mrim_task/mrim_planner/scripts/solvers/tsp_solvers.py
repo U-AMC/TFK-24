@@ -158,6 +158,7 @@ class TSPSolver3D():
 
             astar = AStar(path_planner['grid'], path_planner['safety_distance'], path_planner['timeout'], path_planner['straighten'])
             path, distance = astar.generatePath(p_from.asList(), p_to.asList())
+            # path, distance = astar.generateMinimumJerkPath(p_from.asList(), p_to.asList())
             if path:
                 path = [Pose(p[0], p[1], p[2], p[3]) for p in path]
 
