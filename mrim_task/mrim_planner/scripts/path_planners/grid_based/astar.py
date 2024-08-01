@@ -38,12 +38,10 @@ class Node:
             for other_pos in path:
                 dist = np.linalg.norm(np.array(self.pos) - np.array(other_pos))
                 if dist < self.safety_distance:
-                    repulsion_heuristic += (self.safety_distance / (dist + 1e-6)) ** 3  # Stronger penalty
+                    repulsion_heuristic += (self.safety_distance / (dist + 1e-5)) ** 3  # Stronger penalty
                     repulsion_heuristic *= np.exp(-dist / (self.safety_distance / 2))  # Exponential penalty
 
         return distance_heuristic + repulsion_heuristic
-
-
 
 class AStar:
     def __init__(self, grid, safety_distance, timeout, straighten=False):

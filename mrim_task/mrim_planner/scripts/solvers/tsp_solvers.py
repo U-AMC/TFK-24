@@ -9,7 +9,10 @@ from random import randint
 
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.neighbors import KDTree
-from scipy.spatial.kdtree import KDTree
+from sklearn.mixture import GaussianMixture
+# from scipy.spatial.kdtree import KDTree
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KDTree
 
 from utils import *
 from path_planners.grid_based.grid_3d import Grid3D
@@ -315,34 +318,88 @@ class TSPSolver3D():
         if method == 'kmeans':
             # Prepare positions of the viewpoints in the world
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-
+            num_positions = np.size(positions,0)
+            
             # Perform K-Means clustering
-            if init_positions is not None:
+            if init_positions is not None and (num_positions < 10):
+                # print("sparse sample running  :   ", num_positions)
+                kmeans = KMeans(n_clusters=k, random_state=10, init=init_positions).fit(positions)
+                start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+                cluster_centers = kmeans.cluster_centers_
+                labels = kmeans.labels_
+                # # Experiment with different leaf_size values
+                leaf_sizes = [10,20,30,40,50]
+                best_leaf_size = None
+                best_distance = np.inf
+                
+                for leaf_size in leaf_sizes:
+                    cluster_tree = KDTree(start_positions, leaf_size=leaf_size)
+                    distance, index = cluster_tree.query(cluster_centers)
+                    
+                    # Evaluate the performance, here we assume lower distance is better
+                    if np.sum(distance) < best_distance:
+                        best_distance = np.sum(distance)
+                        best_leaf_size = leaf_size
+                
+                # Use the best leaf_size found
+                cluster_tree = KDTree(start_positions, leaf_size=best_leaf_size)
+                distance, index = cluster_tree.query(cluster_centers)
+                labels = [index[label] for label in labels]
+            
+            elif init_positions is not None:
                 kmeans = KMeans(n_clusters=k, random_state=0, init=init_positions).fit(positions)
+                labels = kmeans.labels_
+
             else:
                 kmeans = KMeans(n_clusters=k, random_state=0).fit(positions)
+                labels = kmeans.labels_
 
             # Get the labels for each viewpoint
-            labels = kmeans.labels_
+            # labels = kmeans.labels_
 
             # Balance clusters
             # clusters = balance_clusters(viewpoints, labels, k)
 
-        ## | -------------------- DBSCAN clustering ------------------- |
-        elif method == 'dbscan':
-            # Prepare positions of the viewpoints in the world
+        ## | -------------------- gmm clustering ------------------- |
+
+        elif method == 'gmm':
+            # print("using gmm")
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
 
-            # Perform DBSCAN clustering
-            dbscan = DBSCAN(eps=0.3, min_samples=15).fit(positions)
-
-            # Get the labels for each viewpoint
-            labels = dbscan.labels_
-
-            # Map the DBSCAN labels to k clusters (robots)
-            unique_labels = np.unique(labels)
-            label_mapping = {label: i % k for i, label in enumerate(unique_labels)}
-            labels = np.array([label_mapping[label] for label in labels])
+            # Standardize the data
+            scaler = StandardScaler()
+            positions_scaled = scaler.fit_transform(positions)
+            
+            # Fit GMM
+            if init_positions is not None:
+                gmm = GaussianMixture(n_components=k, random_state=80, init_params='random', covariance_type='tied').fit(positions_scaled)
+                labels = gmm.predict(positions)
+                cluster_centers = gmm.means_
+            else:
+                kmeans = KMeans(n_clusters=k, random_state=0).fit(positions)
+                labels = kmeans.labels_
+            
+            # Transform cluster centers back to original scale
+            # cluster_centers = scaler.inverse_transform(cluster_centers)
+            # start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
+            # # Experiment with different leaf_size values
+            # leaf_sizes = [10,20,30,40,50]
+            # best_leaf_size = None
+            # best_distance = np.inf
+            
+            # for leaf_size in leaf_sizes:
+            #     cluster_tree = KDTree(start_positions, leaf_size=leaf_size)
+            #     distance, index = cluster_tree.query(cluster_centers)
+                
+            #     # Evaluate the performance, here we assume lower distance is better
+            #     if np.sum(distance) < best_distance:
+            #         best_distance = np.sum(distance)
+            #         best_leaf_size = leaf_size
+            
+            # # Use the best leaf_size found
+            # cluster_tree = KDTree(start_positions, leaf_size=best_leaf_size)
+            # distance, index = cluster_tree.query(cluster_centers)
+            # labels = [index[label] for label in labels]
 
         ## | -------------------- Random clustering ------------------- |
         else:

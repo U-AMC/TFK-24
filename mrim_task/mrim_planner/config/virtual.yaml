@@ -1,10 +1,10 @@
 problem:
-  name: "warehouse_small.problem" # [warehouse_small.problem, warehouse_large.problem, warehouse_yard.problem]
+  name: "warehouse_large.problem" # [warehouse_small.problem, warehouse_large.problem, warehouse_yard.problem]
   plot: False
 
 # Parameters for Traveling Salesman Problem
 tsp:
-  clustering: 'kmeans'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans]
+  clustering: 'kmeans'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans, gmm]
   distance_estimates: 'euclidean' # Method for evaluating cost of paths in TSP heuristic: [euclidean (default), astar, rrt, rrtstar]
 
 # Parameters for path planning
