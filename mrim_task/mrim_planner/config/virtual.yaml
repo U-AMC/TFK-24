@@ -4,12 +4,12 @@ problem:
 
 # Parameters for Traveling Salesman Problem
 tsp:
-  clustering: 'gmm'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans, DBSCAN]
+  clustering: 'kmeans'            # [STUDENTS TODO: implement better method than the default] Clustering method of viewpoints: [random (default), kmeans]
   distance_estimates: 'euclidean' # Method for evaluating cost of paths in TSP heuristic: [euclidean (default), astar, rrt, rrtstar]
 
 # Parameters for path planning
 path_planner:
-  timeout: 10.0              # (s) timeout for single start-to-goal planning
+  timeout: 30.0              # (s) timeout for single start-to-goal planning
   method: 'astar'              # [STUDENTS TODO: implement better method than the default] Method for generating start-to-goal paths: [euclidean, astar, rrt (default), rrtstar]
   straighten_paths: true    # [STUDENTS TODO: implement better method than the default] Path straightening flag (default: false)
 
@@ -48,7 +48,7 @@ simulation:
 visualization:
   rviz:
     use:            True
-    playback_speed: 3.0
+    playback_speed: 6.0
     horizon_length: 20
 
   python:

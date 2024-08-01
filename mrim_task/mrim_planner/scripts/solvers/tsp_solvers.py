@@ -8,11 +8,8 @@ import numpy as np
 from random import randint
 
 from sklearn.cluster import KMeans, DBSCAN
-from sklearn.mixture import GaussianMixture
-from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KDTree
-# from scipy.spatial.kdtree import KDTree
-
+from scipy.spatial.kdtree import KDTree
 
 from utils import *
 from path_planners.grid_based.grid_3d import Grid3D
@@ -65,10 +62,10 @@ class TSPSolver3D():
             z_list = [opt.z for opt in problem.obstacle_points]
             z_list.extend([vp.pose.point.z for vp in viewpoints])
 
-            min_x = np.min(x_list) - path_planner['safety_distance'] 
-            max_x = np.max(x_list) + path_planner['safety_distance'] + 0.5
-            min_y = np.min(y_list) - path_planner['safety_distance'] 
-            max_y = np.max(y_list) + path_planner['safety_distance'] + 0.5
+            min_x = np.min(x_list) - path_planner['safety_distance']
+            max_x = np.max(x_list) + path_planner['safety_distance']
+            min_y = np.min(y_list) - path_planner['safety_distance']
+            max_y = np.max(y_list) + path_planner['safety_distance']
             min_z = problem.min_height
             max_z = problem.max_height
 
@@ -95,7 +92,7 @@ class TSPSolver3D():
         Returns:
             path (list): sequence of points with start equaling the end
         '''
-        # viewpoints = 6.0
+
         # Setup 3D grid for grid-based planners and KDtree for sampling-based planners
         self.setup(problem, path_planner, viewpoints)
 
@@ -255,10 +252,51 @@ class TSPSolver3D():
 
     # #{ clusterViewpoints()
 
-    
-        return labels
 
     def clusterViewpoints(self, problem, viewpoints, method):
+
+        # #{ calculate_trajectory_length()
+
+        def calculate_trajectory_length(viewpoints):
+            # Placeholder function to calculate the total trajectory length for a list of viewpoints
+            # Replace this with the actual implementation
+            total_length = 0
+            for i in range(1, len(viewpoints)):
+                total_length += np.linalg.norm(np.array(viewpoints[i].pose.point.asList()) - np.array(viewpoints[i-1].pose.point.asList()))
+            return total_length
+
+        # # #}
+
+
+        # #{balance_clusters()
+
+        def balance_clusters(viewpoints, labels, k):
+            clusters = [[] for _ in range(k)]
+            for label, vp in zip(labels, viewpoints):
+                clusters[label].append(vp)
+            
+            lengths = [calculate_trajectory_length(cluster) for cluster in clusters]
+            
+            while abs(lengths[0] - lengths[1]) > 3.5:  # Tolerance for balancing
+                larger_cluster = 0 if lengths[0] > lengths[1] else 1
+                smaller_cluster = 1 - larger_cluster
+                
+                # Find the point in the larger cluster that is closest to the smaller cluster's centroid
+                larger_points = np.array([vp.pose.point.asList() for vp in clusters[larger_cluster]])
+                smaller_centroid = np.mean(np.array([vp.pose.point.asList() for vp in clusters[smaller_cluster]]), axis=0)
+                
+                distances = np.linalg.norm(larger_points - smaller_centroid, axis=1)
+                point_to_move = np.argmin(distances)
+                
+                # Move the point
+                clusters[smaller_cluster].append(clusters[larger_cluster].pop(point_to_move))
+                
+                # Recalculate lengths
+                lengths = [calculate_trajectory_length(cluster) for cluster in clusters]
+            
+            return clusters
+
+        # # #}
         '''
         Clusters viewpoints into K (number of robots) clusters.
 
@@ -271,177 +309,36 @@ class TSPSolver3D():
             clusters (Kx list): clusters of points indexed for each robot:
         '''
         k = problem.number_of_robots
-        #"""Compute the coverage radius for each cluster center."""
-        def compute_coverage_radius(cluster_centers, positions, coverage_fraction=0.5):
-        
-            distances = []
-            for center in cluster_centers:
-                dists = np.linalg.norm(positions - center, axis=1)
-                distances.append(np.percentile(dists, coverage_fraction * 100))
-            return np.array(distances)
 
-        def reassign_uncovered_points(positions, cluster_centers, coverage_radii):
-            """Reassign points outside the coverage radius to the nearest cluster."""
-            labels = []
-            for point in positions:
-                distances = np.linalg.norm(cluster_centers - point, axis=1)
-                if np.min(distances) > coverage_radii[np.argmin(distances)]:
-                    labels.append(np.argmin(distances))  # Reassign to nearest cluster
-                else:
-                    labels.append(np.argmin(distances))
         ## | ------------------- K-Means clustering ------------------- |
         if method == 'kmeans':
+            # Prepare positions of the viewpoints in the world
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            kmeans = KMeans(n_clusters=k, algorithm='elkan', max_iter=100, random_state=10, tol=1e-10).fit(positions)
+
+            # Perform K-Means clustering
+            kmeans = KMeans(n_clusters=k, random_state=0).fit(positions)
+
+            # Get the labels for each viewpoint
             labels = kmeans.labels_
-            cluster_centers = kmeans.cluster_centers_
-            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-            cluster_tree = KDTree(start_positions)
-            distance, index = cluster_tree.query(cluster_centers)
-            labels = [index[label] for label in labels]
-            # def find_nearest_center(center):
-            #     distances = np.linalg.norm(start_positions - center, axis=1)
-            #     return np.argmin(distances)
-            # labels = [find_nearest_center(cluster_centers[label]) for label in labels]
 
-        ## | ------------------- another  clustering ------------------- |
-        if method == 'DBSCAN':
-            # positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            # dbscan = DBSCAN(eps=0.5, min_samples=5).fit(positions)
-            # labels = dbscan.labels_
-            
-            # # Filter out noise points (label == -1)
-            # unique_labels = set(labels)
-            # unique_labels.discard(-1)  # Remove noise label
-            
-            # cluster_centers = []
-            # for label in unique_labels:
-            #     cluster_points = positions[labels == label]
-            #     cluster_center = cluster_points.mean(axis=0)
-            #     cluster_centers.append(cluster_center)
-            
-            # cluster_centers = np.array(cluster_centers)
-            
-            # start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-            # cluster_tree = KDTree(start_positions)
-            # distance, index = cluster_tree.query(cluster_centers)
-            # labels = [index[label] if label != -1 else -1 for label in labels]  # Keep noise points labeled as -1
+            # Balance clusters
+            # clusters = balance_clusters(viewpoints, labels, k)
+
+        ## | -------------------- DBSCAN clustering ------------------- |
+        elif method == 'dbscan':
+            # Prepare positions of the viewpoints in the world
             positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-            # DBSCAN parameters: adjust eps and min_samples based on your data
-            dbscan = DBSCAN(eps=50, min_samples=15).fit(positions)
+
+            # Perform DBSCAN clustering
+            dbscan = DBSCAN(eps=0.3, min_samples=15).fit(positions)
+
+            # Get the labels for each viewpoint
             labels = dbscan.labels_
-            
-            # Get unique labels and filter out noise
-            unique_labels = set(labels)
-            unique_labels.discard(-1)  # Remove noise label
 
-            # Calculate cluster centers
-            cluster_centers = []
-            for label in unique_labels:
-                cluster_points = positions[labels == label]
-                if len(cluster_points) > 1:
-                    cluster_center = cluster_points.mean(axis=0)
-                    cluster_centers.append(cluster_center)
-                
-            
-            if cluster_centers:
-                cluster_centers = np.array(cluster_centers)
-            else:
-                # Handle case where no clusters are found
-                cluster_centers = np.empty((0, 3))
-            
-            # Check if there are valid cluster centers before proceeding
-            if cluster_centers.shape[0] > 0:
-                start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-                if start_positions.shape[0] > 0:
-                    cluster_tree = KDTree(start_positions)
-                    distance, index = cluster_tree.query(cluster_centers)
-                    labels = [index[label] if label != -1 else -1 for label in labels]  # Keep noise points labeled as -1
-                else:
-                    raise ValueError("Start positions array is empty")
-            else:
-                raise ValueError("No valid clusters found by DBSCAN")
-            
-        if method == 'gmm':
-            print("using gmm")
-            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-
-            # Standardize the data
-            scaler = StandardScaler()
-            positions_scaled = scaler.fit_transform(positions)
-            
-            # Fit GMM
-            gmm = GaussianMixture(n_components=k, random_state=20, init_params='random', covariance_type='diag').fit(positions_scaled)
-            labels = gmm.predict(positions_scaled)
-            cluster_centers = gmm.means_
-            
-            # Transform cluster centers back to original scale
-            cluster_centers = scaler.inverse_transform(cluster_centers)
-            
-            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-            # Experiment with different leaf_size values
-            leaf_sizes = [1, 3, 5, 7, 10, 15 ,20 ,25 , 30, 35, 40 ,50]
-            best_leaf_size = None
-            best_distance = np.inf
-            
-            for leaf_size in leaf_sizes:
-                cluster_tree = KDTree(start_positions, leaf_size=leaf_size)
-                distance, index = cluster_tree.query(cluster_centers)
-                
-                # Evaluate the performance, here we assume lower distance is better
-                if np.sum(distance) < best_distance:
-                    best_distance = np.sum(distance)
-                    best_leaf_size = leaf_size
-            
-            # Use the best leaf_size found
-            cluster_tree = KDTree(start_positions, leaf_size=best_leaf_size)
-            distance, index = cluster_tree.query(cluster_centers)
-            labels = [index[label] for label in labels]
-            # cluster_tree = KDTree(start_positions, leaf_size=10)
-            
-            # distance, index = cluster_tree.query(cluster_centers)
-            # labels = [index[label] for label in labels]
-        if method == 'gmm_coverage':
-            positions = np.array([vp.pose.point.asList() for vp in viewpoints])
-                
-                # Standardize the data
-            scaler = StandardScaler()
-            positions_scaled = scaler.fit_transform(positions)
-            
-            # Fit GMM
-            gmm = GaussianMixture(n_components=k, random_state=42).fit(positions_scaled)
-            labels = gmm.predict(positions_scaled)
-            cluster_centers = gmm.means_
-            
-            # Transform cluster centers back to original scale
-            cluster_centers = scaler.inverse_transform(cluster_centers)
-            
-            # Compute coverage radius for each cluster
-            coverage_radii = compute_coverage_radius(cluster_centers, positions)
-            
-            # Reassign uncovered points
-            labels = reassign_uncovered_points(positions, cluster_centers, coverage_radii)
-                
-            # Map labels to indices of nearest start positions
-            start_positions = np.array([[sp.position.x, sp.position.y, sp.position.z] for sp in problem.start_poses])
-                            # Experiment with different leaf_size values
-            leaf_sizes = [1, 3, 5, 7, 10, 15 ,20 ,25 , 30, 35, 40 ,50]
-            best_leaf_size = None
-            best_distance = np.inf
-            
-            for leaf_size in leaf_sizes:
-                cluster_tree = KDTree(start_positions, leaf_size=leaf_size)
-                distance, index = cluster_tree.query(cluster_centers)
-                
-                # Evaluate the performance, here we assume lower distance is better
-                if np.sum(distance) < best_distance:
-                    best_distance = np.sum(distance)
-                    best_leaf_size = leaf_size
-
-            kdtree = KDTree(start_positions, leaf_size=25)
-            _, index = kdtree.query(cluster_centers)
-            # labels = [index[label][0] for label in labels]
-            labels = [index[label] for label in labels]
+            # Map the DBSCAN labels to k clusters (robots)
+            unique_labels = np.unique(labels)
+            label_mapping = {label: i % k for i, label in enumerate(unique_labels)}
+            labels = np.array([label_mapping[label] for label in labels])
 
         ## | -------------------- Random clustering ------------------- |
         else:

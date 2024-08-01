@@ -35,7 +35,7 @@ class MrimPlanner:
             exit(-1)
 
         ## |  load parameters from ROS custom config (mrim_task/mrim_planner/config/custom_config.yaml)  |
-        self._viewpoints_distance    = rospy.get_param('~viewpoints/distance', 8.0)
+        self._viewpoints_distance    = rospy.get_param('~viewpoints/distance', 3.0)
         self._plot                     = rospy.get_param('~problem/plot', False)
         self._trajectory_dt            = rospy.get_param('~trajectories/dt', 0.2)
         self._smoothing_sampling_step  = rospy.get_param('~path_smoothing/sampling_step', 0.1)
